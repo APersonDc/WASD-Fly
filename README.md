@@ -13,7 +13,12 @@ This is my first mod for Gorilla Tag. It basically gives you keyboard controls f
 ## Controls
 
 • **F1**: Open/Close menu
+
 • **W, A, S, D**: Movement
+
 • **Left Shift**: Boost speed
+
 • **Space**: Move up
+
 • **Right-Click**: Hold to rotate camera
+
