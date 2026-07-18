@@ -1,0 +1,185 @@
+# full code for it #
+
+
+using System;
+using BepInEx;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace Starlit
+{
+    [BepInPlugin("com.starlit.wasdfly", "WASDFly", "1.0.0")]
+    public class StarlitPlugin : BaseUnityPlugin
+    {
+        private Rigidbody rb;
+        private Transform playerTransform;
+        private float flySpeed = 5f;
+        private float mouseSensitivity = 2f;
+        private float rotationX = 0f;
+        private float rotationY = 0f;
+        private bool showGui = true;
+        private bool isSlippery = true;
+        private Texture2D bgTexture;
+        private Texture2D grayTexture;
+        private GUIStyle boxStyle;
+        private GUIStyle notificationStyle;
+        private string statusMessage = "";
+        private float messageTimer = 0f;
+
+        void Update()
+        {
+            if (Keyboard.current != null && Keyboard.current.f1Key.wasPressedThisFrame)
+            {
+                showGui = !showGui;
+                statusMessage = showGui ? "Menu Opened" : "Menu Closed";
+                messageTimer = 2.5f;
+            }
+
+            if (playerTransform == null)
+            {
+                GameObject playerObj = GameObject.Find("Player") ?? GameObject.Find("GorillaPlayer");
+                if (playerObj != null)
+                {
+                    playerTransform = playerObj.transform;
+                    rb = playerObj.GetComponent<Rigidbody>();
+                }
+                return;
+            }
+
+            if (rb == null) return;
+            WASDFly();
+
+            if (messageTimer > 0) messageTimer -= Time.deltaTime;
+        }
+
+        void LateUpdate()
+        {
+            if (playerTransform != null)
+            {
+                HandleMouseLook();
+            }
+        }
+
+        public void HandleMouseLook()
+        {
+            if (Mouse.current != null && Mouse.current.rightButton.isPressed)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Vector2 delta = Mouse.current.delta.ReadValue();
+
+                rotationX += delta.x * mouseSensitivity * 0.1f;
+                rotationY -= delta.y * mouseSensitivity * 0.1f;
+                rotationY = Mathf.Clamp(rotationY, -90f, 90f);
+
+                Camera.main.transform.localEulerAngles = new Vector3(rotationY, rotationX, 0f);
+            }
+            else
+            {
+                Cursor.lockState = CursorLockMode.None;
+            }
+        }
+
+        public void WASDFly()
+        {
+            Keyboard kb = Keyboard.current;
+            if (kb == null || Camera.main == null) return;
+
+            Vector3 camForward = Camera.main.transform.forward;
+            camForward.y = 0;
+            camForward.Normalize();
+
+            Vector3 camRight = Camera.main.transform.right;
+            camRight.y = 0;
+            camRight.Normalize();
+
+            Vector3 moveDirection = Vector3.zero;
+
+            if (kb.wKey.isPressed) moveDirection += camForward;
+            if (kb.sKey.isPressed) moveDirection -= camForward;
+            if (kb.aKey.isPressed) moveDirection -= camRight;
+            if (kb.dKey.isPressed) moveDirection += camRight;
+
+            if (moveDirection != Vector3.zero)
+            {
+                float speed = kb.leftShiftKey.isPressed ? flySpeed * 2f : flySpeed;
+                rb.linearVelocity = new Vector3(moveDirection.x * speed, rb.linearVelocity.y, moveDirection.z * speed);
+            }
+            else if (!isSlippery)
+            {
+                rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+            }
+
+            if (kb.spaceKey.wasPressedThisFrame)
+            {
+                rb.AddForce(Vector3.up * 5f, ForceMode.VelocityChange);
+            }
+        }
+
+        void OnGUI()
+        {
+            if (bgTexture == null)
+            {
+                bgTexture = new Texture2D(1, 1);
+                bgTexture.SetPixel(0, 0, new Color(0, 0, 0, 1.0f));
+                bgTexture.Apply();
+            }
+            if (grayTexture == null)
+            {
+                grayTexture = new Texture2D(1, 1);
+                grayTexture.SetPixel(0, 0, Color.gray);
+                grayTexture.Apply();
+            }
+            if (notificationStyle == null)
+            {
+                notificationStyle = new GUIStyle(GUI.skin.box);
+                notificationStyle.normal.background = bgTexture;
+                notificationStyle.normal.textColor = Color.white;
+                notificationStyle.fontSize = 24;
+                notificationStyle.alignment = TextAnchor.MiddleCenter;
+            }
+            if (boxStyle == null)
+            {
+                boxStyle = new GUIStyle(GUI.skin.box);
+                boxStyle.normal.background = bgTexture;
+            }
+
+            if (messageTimer > 0)
+            {
+                float alpha = 1.0f;
+                if (messageTimer > 2.0f) alpha = Mathf.Clamp01((2.5f - messageTimer) / 0.5f);
+                else if (messageTimer < 0.5f) alpha = Mathf.Clamp01(messageTimer / 0.5f);
+
+                GUI.color = new Color(1, 1, 1, alpha);
+                GUI.Box(new Rect(Screen.width / 2 - 125, 50, 250, 50), statusMessage, notificationStyle);
+
+                float lineTime = Mathf.Clamp(messageTimer - 0.5f, 0f, 1.5f);
+                float barWidth = (lineTime / 1.5f) * 250f;
+
+                GUI.DrawTexture(new Rect(Screen.width / 2 - 125, 100, barWidth, 3), grayTexture);
+                GUI.color = Color.white;
+            }
+
+            if (!showGui) return;
+
+            GUIStyle toggleStyle = new GUIStyle(GUI.skin.toggle);
+            toggleStyle.normal.textColor = Color.white;
+            toggleStyle.onNormal.textColor = Color.white;
+
+            GUI.Box(new Rect(10, 10, 220, 120), "WASD Fly Settings", boxStyle);
+
+            GUI.Label(new Rect(20, 35, 200, 20), "Speed: " + flySpeed.ToString("F1"));
+            flySpeed = GUI.HorizontalSlider(new Rect(20, 65, 180, 20), flySpeed, 5f, 50f);
+
+            bool newSlipperyState = GUI.Toggle(new Rect(20, 85, 180, 20), isSlippery, " Enable Sliding", toggleStyle);
+
+            if (newSlipperyState != isSlippery)
+            {
+                isSlippery = newSlipperyState;
+                statusMessage = isSlippery ? "Sliding Enabled" : "Sliding Disabled";
+                messageTimer = 2.5f;
+            }
+
+            GUI.Label(new Rect(20, 105, 200, 20), "F1 to Toggle Menu");
+        }
+    }
+}
