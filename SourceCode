@@ -19,10 +19,13 @@ namespace Starlit
         private float rotationY = 0f;
         private bool showGui = true;
         private bool isSlippery = true;
+        private bool showFps = false;
+        private float deltaTime = 0.0f;
         private Texture2D bgTexture;
         private Texture2D grayTexture;
         private GUIStyle boxStyle;
         private GUIStyle notificationStyle;
+        private GUIStyle fpsStyle;
         private string statusMessage = "";
         private float messageTimer = 0f;
 
@@ -33,6 +36,11 @@ namespace Starlit
                 showGui = !showGui;
                 statusMessage = showGui ? "Menu Opened" : "Menu Closed";
                 messageTimer = 2.5f;
+            }
+
+            if (showFps)
+            {
+                deltaTime += (Time.unscaledDeltaTime - deltaTime) * 0.1f;
             }
 
             if (playerTransform == null)
@@ -142,6 +150,15 @@ namespace Starlit
                 boxStyle = new GUIStyle(GUI.skin.box);
                 boxStyle.normal.background = bgTexture;
             }
+            if (fpsStyle == null)
+            {
+                fpsStyle = new GUIStyle(GUI.skin.box);
+                fpsStyle.normal.background = bgTexture;
+                fpsStyle.normal.textColor = Color.green;
+                fpsStyle.alignment = TextAnchor.MiddleCenter;
+                fpsStyle.fontSize = 22;
+                fpsStyle.fontStyle = FontStyle.Bold;
+            }
 
             if (messageTimer > 0)
             {
@@ -159,19 +176,27 @@ namespace Starlit
                 GUI.color = Color.white;
             }
 
+            if (showFps)
+            {
+                float fps = 1.0f / deltaTime;
+                float msec = deltaTime * 1000.0f;
+                string fpsText = string.Format("FPS: {0:0} ({1:0.0} ms)", fps, msec);
+
+                GUI.Box(new Rect(Screen.width - 250, 10, 240, 50), fpsText, fpsStyle);
+            }
+
             if (!showGui) return;
 
             GUIStyle toggleStyle = new GUIStyle(GUI.skin.toggle);
             toggleStyle.normal.textColor = Color.white;
             toggleStyle.onNormal.textColor = Color.white;
 
-            GUI.Box(new Rect(10, 10, 220, 120), "WASD Fly Settings", boxStyle);
+            GUI.Box(new Rect(10, 10, 220, 145), "WASD Fly Settings", boxStyle);
 
             GUI.Label(new Rect(20, 35, 200, 20), "Speed: " + flySpeed.ToString("F1"));
-            flySpeed = GUI.HorizontalSlider(new Rect(20, 65, 180, 20), flySpeed, 5f, 50f);
+            flySpeed = GUI.HorizontalSlider(new Rect(20, 55, 180, 20), flySpeed, 5f, 50f);
 
-            bool newSlipperyState = GUI.Toggle(new Rect(20, 85, 180, 20), isSlippery, " Enable Sliding", toggleStyle);
-
+            bool newSlipperyState = GUI.Toggle(new Rect(20, 80, 180, 20), isSlippery, " Enable Sliding", toggleStyle);
             if (newSlipperyState != isSlippery)
             {
                 isSlippery = newSlipperyState;
@@ -179,7 +204,15 @@ namespace Starlit
                 messageTimer = 2.5f;
             }
 
-            GUI.Label(new Rect(20, 105, 200, 20), "F1 to Toggle Menu");
+            bool newFpsState = GUI.Toggle(new Rect(20, 100, 180, 20), showFps, " Enable FPS Counter", toggleStyle);
+            if (newFpsState != showFps)
+            {
+                showFps = newFpsState;
+                statusMessage = showFps ? "FPS Enabled" : "FPS Disabled";
+                messageTimer = 2.5f;
+            }
+
+            GUI.Label(new Rect(20, 120, 200, 20), "F1 to Toggle Menu");
         }
     }
 }
